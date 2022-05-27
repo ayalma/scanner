@@ -1,10 +1,12 @@
 // ignore_for_file: prefer_function_declarations_over_variables
 
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter/services.dart';
+
 part 'scanner_state.dart';
 
 typedef _KeyBoardListener = void Function(RawKeyEvent);
@@ -28,13 +30,16 @@ class ScannerCubit extends Cubit<ScannerState> {
     RawKeyboard.instance.addListener(_keyboardListener);
   }
 
-  void _watchKeyBoardStream(List<RawKeyEvent> events) {
+  void _watchKeyBoardStream(List<RawKeyEvent> events) async {
     final StringBuffer buffer = StringBuffer();
     for (var event in events) {
       buffer.write(event.data.keyLabel);
     }
-    print(buffer.toString());
+    await write('file.txt', buffer.toString());
   }
+
+  Future<File> write(String name, String data) =>
+      File('C:/test/$name').writeAsString(data);
 
   ///
   ///unWatch raw keyboard listener
