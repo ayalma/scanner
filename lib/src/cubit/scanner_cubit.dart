@@ -14,7 +14,7 @@ typedef _KeyBoardListener = void Function(RawKeyEvent);
 class ScannerCubit extends Cubit<ScannerState> {
   ScannerCubit() : super(ScannerInitial());
   final StreamController<RawKeyEvent> _keyboardStreamCtrl = StreamController();
-  StreamSubscription<List<RawKeyEvent>>? _keyboardStreamSubscription;
+  StreamSubscription<String>? _keyboardStreamSubscription;
   _KeyBoardListener? _keyboardListenerInstance;
   get _keyboardListener =>
       _keyboardListenerInstance ??= (event) => _keyboardStreamCtrl.add(event);
@@ -25,17 +25,14 @@ class ScannerCubit extends Cubit<ScannerState> {
   watch() {
     _keyboardStreamSubscription?.cancel();
     _keyboardStreamSubscription = _keyboardStreamCtrl.stream
-        .transform(RawKeyEventTransform())
+        .transform(RawKeyEventBufferTransform())
+        .transform(RawKeyEventProccessTransform())
         .listen(_watchKeyBoardStream);
     RawKeyboard.instance.addListener(_keyboardListener);
   }
 
-  void _watchKeyBoardStream(List<RawKeyEvent> events) async {
-    final StringBuffer buffer = StringBuffer();
-    for (var event in events) {
-      buffer.write(event.data.keyLabel);
-    }
-    await write('file.txt', buffer.toString());
+  void _watchKeyBoardStream(String scanedData) async {
+    print(scanedData);
   }
 
   Future<File> write(String name, String data) =>
@@ -47,7 +44,7 @@ class ScannerCubit extends Cubit<ScannerState> {
   unWatch() => RawKeyboard.instance.removeListener(_keyboardListener);
 }
 
-class RawKeyEventTransform
+class RawKeyEventBufferTransform
     implements StreamTransformer<RawKeyEvent, List<RawKeyEvent>> {
   @override
   Stream<List<RawKeyEvent>> bind(Stream<RawKeyEvent> source) async* {
@@ -59,6 +56,27 @@ class RawKeyEventTransform
       } else {
         buffer.add(event);
       }
+    }
+  }
+
+  @override
+  StreamTransformer<RS, RT> cast<RS, RT>() => StreamTransformer.castFrom(this);
+}
+
+class RawKeyEventProccessTransform
+    implements StreamTransformer<List<RawKeyEvent>, String> {
+  @override
+  Stream<String> bind(Stream<List<RawKeyEvent>> stream) async* {
+    StringBuffer barcodeStringBuffer = StringBuffer();
+    await for (List<RawKeyEvent> eventList in stream) {
+      for (var event in eventList) {
+        barcodeStringBuffer.write(event.data.keyLabel);
+      }
+      final barcodeString = barcodeStringBuffer.toString();
+      if (barcodeString.startsWith('\$')) {
+        yield barcodeString.replaceFirst('\$', '').trim();
+      }
+      barcodeStringBuffer.clear();
     }
   }
 
