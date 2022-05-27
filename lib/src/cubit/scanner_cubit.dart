@@ -32,6 +32,7 @@ class ScannerCubit extends Cubit<ScannerState> {
   }
 
   void _watchKeyBoardStream(String scanedData) async {
+    //emit(state);
     print(scanedData);
   }
 
@@ -49,12 +50,20 @@ class RawKeyEventBufferTransform
   @override
   Stream<List<RawKeyEvent>> bind(Stream<RawKeyEvent> source) async* {
     List<RawKeyEvent> buffer = List.empty(growable: true);
+
     await for (RawKeyEvent event in source) {
-      if (event.isKeyPressed(LogicalKeyboardKey.enter)) {
-        yield buffer;
-        buffer.clear();
-      } else {
-        buffer.add(event);
+      if (event.runtimeType.toString() == "RawKeyDownEvent") {
+        if (event.isKeyPressed(LogicalKeyboardKey.enter)) {
+          yield buffer;
+          buffer.clear();
+        } else if (buffer.isNotEmpty &&
+            !(buffer.first.logicalKey == LogicalKeyboardKey.f1) &&
+            event.logicalKey == LogicalKeyboardKey.f1) {
+          buffer.clear();
+          buffer.add(event);
+        } else {
+          buffer.add(event);
+        }
       }
     }
   }
@@ -69,12 +78,12 @@ class RawKeyEventProccessTransform
   Stream<String> bind(Stream<List<RawKeyEvent>> stream) async* {
     StringBuffer barcodeStringBuffer = StringBuffer();
     await for (List<RawKeyEvent> eventList in stream) {
-      for (var event in eventList) {
-        barcodeStringBuffer.write(event.data.keyLabel);
-      }
-      final barcodeString = barcodeStringBuffer.toString();
-      if (barcodeString.startsWith('\$')) {
-        yield barcodeString.replaceFirst('\$', '').trim();
+      if (eventList.first.logicalKey == LogicalKeyboardKey.f1) {
+        for (int index = 0; index < eventList.length; index++) {
+          barcodeStringBuffer.write(eventList[index].data.keyLabel);
+        }
+        final barcodeString = barcodeStringBuffer.toString();
+        yield barcodeString.trim();
       }
       barcodeStringBuffer.clear();
     }
